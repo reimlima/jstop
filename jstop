@@ -1,0 +1,168 @@
+#!/bin/bash
+
+#[ Script ]--------------------------------------------------------------------#
+#                                                                              #
+# jstop                                                                        #
+# Script que exibe informacoes do jstat como se fosse o comando top            #
+#                                                                              #
+# rlima@gmail.com                                                              #
+# $Id: jstop,v 2 2014/07/11 rlima Exp rlima $                                  #
+#                                                                              #
+#[ License ]-------------------------------------------------------------------#
+#                                                                              #
+# Copyright (c) 2014 Reinaldo Marques de Lima reimlima@gmail.com               #
+#                                                                              #
+# PT-br:                                                                       #
+# A permissão  é  concedida,  a título gratuito, a qualquer pessoa que obtenha #
+# uma   cópia   deste   software   e   arquivos   de  documentação  associados #
+# (o "Software"),  para  lidar  com  o  Software sem restrição, incluindo, sem #
+# limitação,  os  direitos  de  usar,  copiar,  modificar,  mesclar, publicar, #
+# distribuir,  sublicenciar,  e / ou vender cópias do Software, e permitir que #
+# as  pessoas  a  quem  o  Software  é fornecido o façam, sujeito às seguintes #
+# condições:                                                                   #
+#                                                                              #
+# O  aviso de copyright acima e este aviso de permissão devem ser incluídos em #
+# todas as cópias ou partes substanciais do Software.                          #
+#                                                                              #
+# O  SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER TIPO, EXPRESSA #
+# OU  IMPLÍCITA,  INCLUINDO,  SEM  LIMITAÇÃO, AS GARANTIAS DE COMERCIALIZAÇÃO, #
+# ADEQUAÇÃO  A  UM  DETERMINADO  FIM E NÃO VIOLAÇÃO. EM NENHUM CASO OS AUTORES #
+# OU  DIREITOS  AUTORAIS  TITULARES  SER  RESPONSÁVEL POR QUALQUER RECLAMAÇÃO, #
+# DANOS  OU  OUTRAS  RESPONSABILIDADES,  SEJA  EM  UMA  AÇÃO DE CUMPRIMENTO DE #
+# CONTRATO OU DE OUTRA FORMA, DECORRENTE DE, OU EM CONEXÃO COM O SOFTWARE OU O #
+# USO OU OUTRAS FUNÇÕES DO SOFTWARE.                                           #
+#                                                                              #
+# Exceto  conforme  contido no presente aviso, o nome do (s) dos detentores de #
+# direitos  autorais acima não devem ser utilizados em publicidade ou de outra #
+# forma  para  promover  a venda, uso ou outras negociações deste Software sem #
+# autorização prévia por escrito.                                              #
+#                                                                              #
+#----------------------------                                                  #
+#                                                                              #
+# EN:                                                                          #
+# Permission is hereby granted, free of charge, to any person obtaining a copy #
+# of  this  software  and  associated  documentation  files  (the "Software"), #
+# to  deal  in  the Software without restriction, including without limitation #
+# the  rights  to  use,  copy, modify, merge, publish, distribute, sublicense, #
+# and/or  sell  copies  of  the  Software,  and  to permit persons to whom the #
+# Software is furnished to do so, subject to the following conditions:         #
+#                                                                              #
+# The  above  copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                          #
+#                                                                              #
+# THE  SOFTWARE  IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED,  INCLUDING  BUT  NOT  LIMITED TO THE WARRANTIES OF MERCHANTABILITY, #
+# FITNESS  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE #
+# AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE  FOR ANY CLAIM, DAMAGES OR OTHER #
+# LIABILITY,   WHETHER   IN   AN   ACTION  OF  CONTRACT,  TORT  OR  OTHERWISE, #
+# ARISING FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER #
+# DEALINGS IN THE SOFTWARE.                                                    #
+#                                                                              #
+# Except  as  contained  in  this  notice,  the name(s) of the above copyright #
+# holders  shall  not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written authorization.  #
+#                                                                              #
+#[ Changelog ]-----------------------------------------------------------------#
+#                                                                              #
+# v1 - [ 10/07/2014 ]                                                          #
+# - Primeiro release. Exibe informacoes de apenas um processo ;                #
+# - Bem tosquinho, criado para funcionar e exibir o conceito ;                 #
+#                                                                              #
+# v2 - [ 11/07/2014 ]                                                          #
+# - Utilizacao de Arquivo de conf ;                                            #
+# - Script agora exibe mais de um processo passado pela linha de               #
+#   comando ;                                                                  #
+# - Melhorias gerais na estrutura do script ;                                  #
+#                                                                              #
+#------------------------------------------------------------------------------#
+
+#[ Variaveis ]-----------------------------------------------------------------#
+
+CONT=0
+MESSAGE=""
+SLEEPTIME=0
+BC=$(which bc)
+PS=$(which ps)
+AWK=$(which awk)
+SED=$(which sed)
+GREP=$(which grep)
+TAIL=$(which tail)
+TPUT=$(which tput)
+CLEAR=$(which clear)
+PYTHON=$(which python)
+SCRIPTNAME=$(basename $0)
+
+#[ Funcao de Erro: Exibe o erro enviado para ela e sai do script ]-------------#
+
+exiterrorfunc(){
+        echo
+        echo $@
+        echo
+        exit
+}
+
+#[ Funcao Principal ]----------------------------------------------------------#
+
+jstopfunc(){
+        PROCESSOS=$@
+        while : ; do
+                for j in $PROCESSOS ; do
+                        CONT=$((CONT+1))
+                        JVMSTATS=$($JSTATBIN -gccause -t $j | $TAIL -1)
+                        JVMOLD=$(echo $JVMSTATS | $AWK '{print $5}')
+                        JVMFGC=$(echo $JVMSTATS | $AWK '{print $9}')
+                        JVMFGC=$(echo $JVMFGC | $SED -e :a -e 's/^.\{1,4\}$/&_/;ta')
+                        JVMEDEN=$(echo $JVMSTATS | $AWK '{print $4}')
+                        JVMPERM=$(echo $JVMSTATS | $AWK '{print $6}')
+                        JVMACTUALGCCAUSE=$(echo $JVMSTATS | $AWK '{print $14" "$15}')
+                        JVMTIMESTAMP=$(echo $JVMSTATS | $AWK '{print $1}')
+                        JVMUPTIME=$(echo "(($JVMTIMESTAMP/60)/60)/24" | $BC)
+                        JVMUPTIME=$(echo $JVMUPTIME | $SED -e :a -e 's/^.\{1,4\}$/&_/;ta')
+                        JVMACTUALGCCAUSE=${JVMACTUALGCCAUSE/#No/Sem}
+                        MESSAGE="$MESSAGE${j}\t$JVMOLD%\t$JVMPERM%\t$JVMEDEN%\t${JVMFGC} vezes\t$JVMUPTIME dias\t$JVMACTUALGCCAUSE\n"
+                done
+                COLUNAS=$($TPUT cols)
+                $CLEAR
+                DATATOP=$(date +'%d/%m/%Y %H:%M:%S')
+                $TPUT cup 0 0
+                echo "$SCRIPTNAME - [DATA: $DATATOP]"
+                $PYTHON -c "print $COLUNAS * '-'"
+                echo -e "PID\tOld\tPerm\tEden\tFullGC\t\tTEMPO\t\tFull GC"
+                echo -e $MESSAGE
+                [ $CONT -ne 1 ] && SLEEPTIME=1
+                sleep $SLEEPTIME
+                MESSAGE=""
+        done
+}
+
+#[ Carregando Arquivo de Conf ]------------------------------------------------#
+
+if [ -e jstop.conf ] ; then
+        source jstop.conf
+else
+        exiterrorfunc "ERRO: Arquivo jstop.conf nao encontrado"
+fi
+
+#[ testes, testes, testes ]----------------------------------------------------#
+
+[ $JSTATBIN ] || exiterrorfunc "ERRO: Binario jstat nao encontrado"
+
+[ $1 ] || exiterrorfunc "USAGE: $SCRIPTNAME [PID's]"
+
+PARAMTEST=$(echo $@ | $GREP -v '[a-z]')
+[[ ${PARAMTEST} ]] || exiterrorfunc "ERRO: Use somente numeros de processo"
+
+for i in $PARAMTEST ; do
+        PROCTEST=$($PS -p ${i} -o comm=)
+        if [ ! $PROCTEST ] ; then
+                exiterrorfunc "ERRO: Processo ${i} nao existe"
+        else
+                if [ $PROCTEST != "java" ] ; then
+                        exiterrorfunc "ERRO: Processo ${i} nao eh um java"
+                fi
+        fi
+done
+
+#[ Testes finalizados, vamos trabalhar ]---------------------------------------#
+
+jstopfunc $@
