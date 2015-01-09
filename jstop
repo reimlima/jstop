@@ -3,7 +3,14 @@
 #[ Script ]--------------------------------------------------------------------#
 #                                                                              #
 # jstop                                                                        #
+#                                                                              #
+# PT-br:                                                                       #
 # Script que exibe informacoes do jstat como se fosse o comando top            #
+#                                                                              #
+# ----------------------------                                                 #
+#                                                                              #
+# EN:                                                                          #
+# Show jstat informations in "top command" style                               #
 #                                                                              #
 # rlima@gmail.com                                                              #
 # $Id: jstop,v 2 2014/07/11 rlima Exp rlima $                                  #
@@ -76,7 +83,7 @@
 #                                                                              #
 #------------------------------------------------------------------------------#
 
-#[ Variaveis ]-----------------------------------------------------------------#
+#[ Variables ]-----------------------------------------------------------------#
 
 CONT=0
 MESSAGE=""
@@ -92,7 +99,7 @@ CLEAR=$(which clear)
 PYTHON=$(which python)
 SCRIPTNAME=$(basename $0)
 
-#[ Funcao de Erro: Exibe o erro enviado para ela e sai do script ]-------------#
+#[ Error Function: displays the given error an exit ]--------------------------#
 
 exiterrorfunc(){
         echo
@@ -101,12 +108,12 @@ exiterrorfunc(){
         exit
 }
 
-#[ Funcao Principal ]----------------------------------------------------------#
+#[ Main Function ]-------------------------------------------------------------#
 
 jstopfunc(){
-        PROCESSOS=$@
+        PROCESSES=$@
         while : ; do
-                for j in $PROCESSOS ; do
+                for j in $PROCESSES ; do
                         CONT=$((CONT+1))
                         JVMSTATS=$($JSTATBIN -gccause -t $j | $TAIL -1)
                         JVMOLD=$(echo $JVMSTATS | $AWK '{print $5}')
@@ -121,12 +128,12 @@ jstopfunc(){
                         JVMACTUALGCCAUSE=${JVMACTUALGCCAUSE/#No/Sem}
                         MESSAGE="$MESSAGE${j}\t$JVMOLD%\t$JVMPERM%\t$JVMEDEN%\t${JVMFGC} vezes\t$JVMUPTIME dias\t$JVMACTUALGCCAUSE\n"
                 done
-                COLUNAS=$($TPUT cols)
+                COLUMNS=$($TPUT cols)
                 $CLEAR
-                DATATOP=$(date +'%d/%m/%Y %H:%M:%S')
+                DATETOP=$(date +'%d/%m/%Y %H:%M:%S')
                 $TPUT cup 0 0
-                echo "$SCRIPTNAME - [DATA: $DATATOP]"
-                $PYTHON -c "print $COLUNAS * '-'"
+                echo "$SCRIPTNAME - [DATE: $DATETOP]"
+                $PYTHON -c "print $COLUMNS * '-'"
                 echo -e "PID\tOld\tPerm\tEden\tFullGC\t\tTEMPO\t\tFull GC"
                 echo -e $MESSAGE
                 [ $CONT -ne 1 ] && SLEEPTIME=1
@@ -135,34 +142,34 @@ jstopfunc(){
         done
 }
 
-#[ Carregando Arquivo de Conf ]------------------------------------------------#
+#[ Load conf File ]------------------------------------------------------------#
 
 if [ -e jstop.conf ] ; then
         source jstop.conf
 else
-        exiterrorfunc "ERRO: Arquivo jstop.conf nao encontrado"
+        exiterrorfunc "ERROR: jstop.conf file was not found"
 fi
 
-#[ testes, testes, testes ]----------------------------------------------------#
+#[ tests, tests, tests ]-------------------------------------------------------#
 
-[ $JSTATBIN ] || exiterrorfunc "ERRO: Binario jstat nao encontrado"
+[ $JSTATBIN ] || exiterrorfunc "ERROR: jstat was not found"
 
 [ $1 ] || exiterrorfunc "USAGE: $SCRIPTNAME [PID's]"
 
 PARAMTEST=$(echo $@ | $GREP -v '[a-z]')
-[[ ${PARAMTEST} ]] || exiterrorfunc "ERRO: Use somente numeros de processo"
+[[ ${PARAMTEST} ]] || exiterrorfunc "ERROR: Use only process numbers"
 
 for i in $PARAMTEST ; do
         PROCTEST=$($PS -p ${i} -o comm=)
         if [ ! $PROCTEST ] ; then
-                exiterrorfunc "ERRO: Processo ${i} nao existe"
+                exiterrorfunc "ERROR: Process ${i} does not exist"
         else
                 if [ $PROCTEST != "java" ] ; then
-                        exiterrorfunc "ERRO: Processo ${i} nao eh um java"
+                        exiterrorfunc "ERROR: ${i} is not a java process"
                 fi
         fi
 done
 
-#[ Testes finalizados, vamos trabalhar ]---------------------------------------#
+#[ Everything OK, let's work! ]------------------------------------------------#
 
 jstopfunc $@
